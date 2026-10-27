@@ -1,0 +1,154 @@
+@startuml
+' Diagrama de clases del TPO Ajedrez.
+' Para verlo: pegar este texto en https://www.plantuml.com/plantuml o usar el plugin PlantUML de IntelliJ.
+' Mantenerlo actualizado cada vez que cambie el código.
+
+skinparam classAttributeIconSize 0
+hide empty members
+
+package "ajedrez.nucleo (NÚCLEO — sin dependencias externas)" {
+
+  enum Color {
+    BLANCO
+    NEGRO
+    + opuesto() : Color
+  }
+
+  class Direccion <<record>> {
+    + filas : int
+    + columnas : int
+    + {static} RECTAS
+    + {static} DIAGONALES
+    + {static} SALTOS_CABALLO
+    + {static} ALREDEDOR
+  }
+
+  class Posicion <<record>> {
+    + fila : int
+    + columna : int
+    + desplazar(d : Direccion) : Posicion
+  }
+
+  interface ReglaMovimiento <<Strategy>> {
+    + destinos(desde : Posicion, tablero : Tablero, color : Color) : List<Posicion>
+  }
+
+  class MovimientoDeslizante {
+    - direcciones : List<Direccion>
+  }
+  class MovimientoSalto {
+    - saltos : List<Direccion>
+  }
+  class MovimientoPeon
+
+  class Pieza {
+    - nombre : String
+    - simbolo : char
+    - color : Color
+    - reglas : List<ReglaMovimiento>
+    - esRey : boolean
+    - yaSeMovio : boolean
+    + destinosPosibles(desde : Posicion, tablero : Tablero) : List<Posicion>
+    + movida() : Pieza
+  }
+
+  class Piezas <<fábrica>> {
+    + {static} rey(c : Color) : Pieza
+    + {static} reina(c : Color) : Pieza
+    + {static} torre(c : Color) : Pieza
+    + {static} alfil(c : Color) : Pieza
+    + {static} caballo(c : Color) : Pieza
+    + {static} peon(c : Color) : Pieza
+  }
+
+  class Tablero {
+    - filas : int
+    - columnas : int
+    - piezas : Map<Posicion, Pieza>
+    + estaDentro(p : Posicion) : boolean
+    + piezaEn(p : Posicion) : Pieza
+    + estaVacia(p : Posicion) : boolean
+    + hayRival(p : Posicion, c : Color) : boolean
+    + colocar(pieza : Pieza, p : Posicion)
+    + mover(desde : Posicion, hasta : Posicion) : Pieza
+    + posicionesDe(c : Color) : List<Posicion>
+    + copia() : Tablero
+  }
+
+  interface DisposicionInicial {
+    + crearTablero() : Tablero
+  }
+  class DisposicionClasica
+
+  class DetectorJaque {
+    + estaEnJaque(t : Tablero, c : Color) : boolean
+  }
+
+  enum EstadoPartida {
+    EN_JUEGO
+    JAQUE
+    JAQUE_MATE
+    AHOGADO
+  }
+
+  class MovimientoInvalidoException
+
+  class Partida <<puerto de entrada>> {
+    - tablero : Tablero
+    - detector : DetectorJaque
+    - turno : Color
+    + mover(desde : Posicion, hasta : Posicion) : Pieza
+    + estaEnJaque(c : Color) : boolean
+    + estado() : EstadoPartida
+    + movimientosLegales(c : Color) : List<Posicion[]>
+    + getTurno() : Color
+    + getTablero() : Tablero
+  }
+}
+
+package "ajedrez.consola (ADAPTADOR)" {
+  class ConsolaUI {
+    - partida : Partida
+    + jugar()
+  }
+  class NotacionAlgebraica {
+    + {static} aPosicion(texto : String) : Posicion
+    + {static} aTexto(p : Posicion) : String
+  }
+  class Main {
+    + {static} main(args : String[])
+  }
+}
+
+ReglaMovimiento <|.. MovimientoDeslizante
+ReglaMovimiento <|.. MovimientoSalto
+ReglaMovimiento <|.. MovimientoPeon
+DisposicionInicial <|.. DisposicionClasica
+
+Pieza o-- "1..*" ReglaMovimiento : se compone de
+Pieza --> Color
+Tablero o-- "0..*" Pieza
+Tablero ..> Posicion
+Posicion ..> Direccion
+Piezas ..> Pieza : crea
+DisposicionClasica ..> Piezas
+DisposicionClasica ..> Tablero : crea
+
+Partida *-- Tablero
+Partida --> DetectorJaque
+Partida ..> DisposicionInicial
+Partida ..> MovimientoInvalidoException : lanza
+Partida ..> EstadoPartida
+DetectorJaque ..> Tablero
+
+ConsolaUI --> Partida : usa
+ConsolaUI ..> NotacionAlgebraica
+Main ..> ConsolaUI
+Main ..> DisposicionClasica
+
+note bottom of ConsolaUI
+  Las dependencias apuntan hacia adentro:
+  el adaptador conoce al núcleo,
+  el núcleo nunca conoce al adaptador.
+end note
+@enduml
